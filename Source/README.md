@@ -1,7 +1,3 @@
-# Stress benchmark backend (C++)
-
-This folder contains the C++ backend that maxes out CPU, RAM, GPU, and VRAM when the corresponding options are enabled in the GUI.
-
 ## Build without CMake (recommended if CMake is not installed)
 
 You need **Visual Studio** (or **Build Tools for Visual Studio**) with “Desktop development with C++” installed.

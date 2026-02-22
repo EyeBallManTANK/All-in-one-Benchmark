@@ -1,0 +1,7 @@
+# Run the app: pip install -r requirements.txt
+PyQt6>=6.4
+pyqtgraph>=0.13
+psutil>=5.9
+
+# Only needed to build the single .exe:
+# pip install pyinstaller

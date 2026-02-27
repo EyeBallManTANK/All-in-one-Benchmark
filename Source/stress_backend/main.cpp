@@ -1,25 +1,30 @@
 /**
  * Stress benchmark backend. Run with --cpu, --ram, --gpu, --vram (any combination).
- * Runs until the process is terminated (e.g. by the Python launcher when the dashboard closes).
+ * GPU/VRAM: uses CUDA when available (NVIDIA), else OpenCL (AMD/Intel or fallback).
  */
 #include "stress_cpu.hpp"
 #include "stress_ram.hpp"
 #include <atomic>
-#include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
 
 #ifdef STRESS_HAVE_CUDA
+extern "C" int cuda_available(void);
 extern "C" void run_gpu_stress(std::atomic<bool>* stop_flag);
 extern "C" void run_vram_stress(std::atomic<bool>* stop_flag);
+#endif
+
+#ifdef STRESS_HAVE_OPENCL
+extern "C" void run_gpu_stress_opencl(std::atomic<bool>* stop_flag);
+extern "C" void run_vram_stress_opencl(std::atomic<bool>* stop_flag);
 #endif
 
 static void usage(const char* prog) {
     std::cerr << "Usage: " << prog << " [--cpu] [--ram] [--gpu] [--vram]\n"
               << "  At least one option must be given.\n"
-              << "  Process runs until killed (e.g. by parent).\n";
+              << "  GPU/VRAM: CUDA (NVIDIA) or OpenCL (AMD/Intel).\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -42,11 +47,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-#ifdef STRESS_HAVE_CUDA
-    (void)0;
-#else
+#if !defined(STRESS_HAVE_CUDA) && !defined(STRESS_HAVE_OPENCL)
     if (do_gpu || do_vram) {
-        std::cerr << "Warning: GPU/VRAM not available (build without CUDA). Skipping.\n";
+        std::cerr << "Warning: GPU/VRAM not available (build with CUDA or OpenCL). Skipping.\n";
         do_gpu = false;
         do_vram = false;
     }
@@ -66,14 +69,43 @@ int main(int argc, char* argv[]) {
     if (do_ram) {
         workers.emplace_back([&stop_ram]() { stress::run_ram_stress(stop_ram); });
     }
+
+    // GPU/VRAM: prefer CUDA (NVIDIA) when available, else OpenCL (AMD/Intel)
+    bool use_cuda = false;
 #ifdef STRESS_HAVE_CUDA
-    if (do_gpu) {
-        workers.emplace_back([&stop_gpu]() { run_gpu_stress(&stop_gpu); });
-    }
-    if (do_vram) {
-        workers.emplace_back([&stop_vram]() { run_vram_stress(&stop_vram); });
+    if (do_gpu || do_vram) {
+        use_cuda = (cuda_available() != 0);
     }
 #endif
+
+    if (do_gpu) {
+#ifdef STRESS_HAVE_CUDA
+        if (use_cuda) {
+            workers.emplace_back([&stop_gpu]() { run_gpu_stress(&stop_gpu); });
+        } else
+#endif
+#ifdef STRESS_HAVE_OPENCL
+        {
+            workers.emplace_back([&stop_gpu]() { run_gpu_stress_opencl(&stop_gpu); });
+        }
+#else
+        if (!use_cuda) { (void)stop_gpu; }
+#endif
+    }
+    if (do_vram) {
+#ifdef STRESS_HAVE_CUDA
+        if (use_cuda) {
+            workers.emplace_back([&stop_vram]() { run_vram_stress(&stop_vram); });
+        } else
+#endif
+#ifdef STRESS_HAVE_OPENCL
+        {
+            workers.emplace_back([&stop_vram]() { run_vram_stress_opencl(&stop_vram); });
+        }
+#else
+        if (!use_cuda) { (void)stop_vram; }
+#endif
+    }
 
     for (auto& w : workers) {
         w.join();

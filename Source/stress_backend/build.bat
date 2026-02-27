@@ -26,7 +26,8 @@ if "%VCVARS%"=="" (
 
 call "%VCVARS%" >nul 2>&1
 echo Building stress_bench.exe (CPU + RAM stress)...
-cl /nologo /EHsc /std:c++17 /O2 /Fe:stress_bench.exe ..\main.cpp ..\stress_cpu.cpp ..\stress_ram.cpp
+rem /MT = static CRT so the exe runs on any PC without installing VC++ Redistributable
+cl /nologo /EHsc /std:c++17 /O2 /MT /Fe:stress_bench.exe ..\main.cpp ..\stress_cpu.cpp ..\stress_ram.cpp
 if errorlevel 1 exit /b 1
 echo Done: %CD%\stress_bench.exe
 cd ..

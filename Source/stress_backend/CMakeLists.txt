@@ -3,6 +3,11 @@ project(stress_bench LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# Static CRT so the built exe runs on any Windows PC without installing VC++ Redistributable
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 # Optional CUDA (NVIDIA). Default OFF = skip CUDA so build works without CUDA toolset. Set OFF to enable GPU/VRAM.
 option(STRESS_SKIP_CUDA "Skip CUDA build (default ON; set OFF to enable GPU/VRAM when CUDA is installed)" ON)
 set(STRESS_HAVE_CUDA OFF)
@@ -36,6 +41,16 @@ else()
   message(STATUS "CUDA skipped (STRESS_SKIP_CUDA=ON): building CPU/RAM stress only")
 endif()
 
+# OpenCL: for GPU/VRAM stress on AMD and Intel (and fallback when CUDA not available)
+set(STRESS_HAVE_OPENCL OFF)
+find_package(OpenCL QUIET)
+if(OpenCL_FOUND)
+  set(STRESS_HAVE_OPENCL ON)
+  message(STATUS "OpenCL found: GPU/VRAM stress available for AMD/Intel and as fallback")
+else()
+  message(STATUS "OpenCL not found: GPU/VRAM stress only via CUDA (NVIDIA)")
+endif()
+
 add_executable(stress_bench
   main.cpp
   stress_cpu.cpp
@@ -49,6 +64,17 @@ if(STRESS_HAVE_CUDA)
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES "75;80;86;89"
   )
+endif()
+
+if(STRESS_HAVE_OPENCL)
+  target_sources(stress_bench PRIVATE stress_opencl.cpp)
+  target_compile_definitions(stress_bench PRIVATE STRESS_HAVE_OPENCL)
+  if(TARGET OpenCL::OpenCL)
+    target_link_libraries(stress_bench PRIVATE OpenCL::OpenCL)
+  else()
+    target_include_directories(stress_bench PRIVATE ${OpenCL_INCLUDE_DIRS})
+    target_link_libraries(stress_bench PRIVATE ${OpenCL_LIBRARIES})
+  endif()
 endif()
 
 target_include_directories(stress_bench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

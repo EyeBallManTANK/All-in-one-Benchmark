@@ -71,9 +71,13 @@ def start_stress(config):
     if config.get("vram"):
         args.append("--vram")
 
-    # Run with exe's directory as cwd so the backend and any DLLs (e.g. CUDA) find paths correctly
+    # Run with exe's directory as cwd so the backend and any DLLs (e.g. CUDA) find paths correctly.
+    # On Windows, hide the console window for the stress backend so no cmd popup appears.
     cwd = os.path.dirname(exe)
-    creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    else:
+        creationflags = 0
     try:
         process = subprocess.Popen(
             args,

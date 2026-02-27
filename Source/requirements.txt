@@ -1,7 +1,8 @@
 # Run the app: pip install -r requirements.txt
+# Temperatures and GPU/VRAM load from LibreHardwareMonitorLib.dll (bundle with exe via spec).
 PyQt6>=6.4
 pyqtgraph>=0.13
 psutil>=5.9
+pythonnet>=3.0.0
 
-# Only needed to build the single .exe:
-# pip install pyinstaller
+# Build the single .exe: pip install pyinstaller (include LibreHardwareMonitorLib.dll in spec)

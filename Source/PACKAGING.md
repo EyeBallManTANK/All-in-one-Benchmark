@@ -2,6 +2,16 @@
 
 This produces **one executable** (`All-in-one-Benchmark.exe`) that you can put in a GitHub Release. It bundles the Python GUI and the C++ stress backend.
 
+## Making the exe run on any computer
+
+So that users can **drop the exe on any PC and run it with no extra installs**:
+
+1. **Build the stress backend without CUDA** (default). That way the exe does not require NVIDIA drivers or CUDA. CPU and RAM stress work everywhere; GPU/VRAM stress options are only available if you build with CUDA and the user has an NVIDIA GPU.
+2. **Use the built-in static CRT** so the stress process does not need the Visual C++ Redistributable. The CMake build and `build.bat` are already set up for this. If the stress backend still exits right after launch (e.g. old build without static CRT), the app will suggest installing the VC++ Redistributable.
+3. **Temperatures use only built-in Windows and drivers:** CPU temp comes from Windows WMI (MSAcpi_ThermalZoneTemperature; works on many laptops, often missing on desktops). GPU temp and GPU/VRAM usage come from **nvidia-smi**, which is present when NVIDIA drivers are installed (no extra software). On AMD/Intel GPUs, GPU/VRAM graphs show 0% and --°C.
+
+If you build with CUDA for GPU/VRAM stress, the exe will only run correctly on PCs with NVIDIA drivers; use a CPU+RAM-only build for maximum portability.
+
 ## Prerequisites
 
 - **Python 3.10+** with pip
@@ -15,6 +25,8 @@ From the project root:
 ```bat
 pip install -r requirements.txt
 ```
+
+No optional packages. The built exe uses only Windows WMI and nvidia-smi (with NVIDIA driver) for temps; end users install nothing.
 
 ## Step 2: Build the C++ stress backend
 
@@ -83,4 +95,5 @@ Then manually copy `stress_bench.exe` into the generated `dist/All-in-one-Benchm
 
 - **Antivirus:** Packed executables are sometimes flagged. You can sign the exe (code signing) to reduce false positives.
 - **Size:** The single exe is large (PyQt6 + Python runtime). This is normal for PyInstaller one-file builds.
-- **CUDA:** If the stress backend was built with CUDA, the same CUDA runtime must be present on the user’s PC; the packer does not redistribute CUDA DLLs.
+- **CUDA:** If the stress backend was built with CUDA, the exe needs NVIDIA drivers on the target PC. For "run anywhere," build without CUDA (default).
+- **VC++ Redist:** The stress backend is built with the static CRT, so users do not need to install the Visual C++ Redistributable. If the stress process exits right after launch, the app will suggest installing the VC++ Redistributable (x64).
